@@ -1,0 +1,77 @@
+﻿@page "/"
+@using System.Net.Http.Json
+@using BlazorWasmBrasilApiCep.Models
+@inject HttpClient Http
+
+<PageTitle>Consulta CEP - BrasilAPI</PageTitle>
+
+<h1>Consulta de CEP com Blazor WebAssembly</h1>
+
+<div class="row mb-3">
+    <div class="col-md-4">
+        <label for="cepInput" class="form-label">Digite o CEP:</label>
+        <input id="cepInput" class="form-control" @bind="cepDigitado" placeholder="Ex: 01001000" />
+    </div>
+    <div class="col-md-2 d-flex align-items-end">
+        <button class="btn btn-primary w-100" @onclick="ConsultarCep" disabled="@carregando">
+            @(carregando ? "Buscando..." : "Consultar")
+        </button>
+    </div>
+</div>
+
+@if (mensagemErro != null)
+{
+    <div class="alert alert-danger mt-3">@mensagemErro</div>
+}
+
+@if (endereco != null)
+{
+    <div class="mt-4">
+        <h4>Endereço Encontrado</h4>
+        <p><strong>CEP:</strong> @endereco.cep</p>
+        <p><strong>Logradouro:</strong> @endereco.street</p>
+        <p><strong>Bairro:</strong> @endereco.neighborhood</p>
+        <p><strong>Cidade:</strong> @endereco.city (@endereco.state)</p>
+        <p><strong>Serviço:</strong> @endereco.service</p>
+    </div>
+}
+
+@code {
+    private string cepDigitado = "";
+    private Cep? endereco;
+    private bool carregando = false;
+    private string? mensagemErro;
+
+    private async Task ConsultarCep()
+    {
+        var cepLimpo = new string(cepDigitado.Where(char.IsDigit).ToArray());
+
+        if (cepLimpo.Length != 8)
+        {
+            mensagemErro = "O CEP deve conter 8 dígitos.";
+            return;
+        }
+
+        carregando = true;
+        mensagemErro = null;
+        endereco = null;
+
+        try
+        {
+            endereco = await Http.GetFromJsonAsync<Cep>(
+                $"https://brasilapi.com.br/api/cep/v1/{cepLimpo}");
+        }
+        catch (HttpRequestException ex)
+        {
+            mensagemErro = $"Erro HTTP {(int?)ex.StatusCode}: {ex.Message}";
+        }
+        catch (Exception ex)
+        {
+            mensagemErro = $"Erro: {ex.Message}";
+        }
+        finally
+        {
+            carregando = false;
+        }
+    }
+}
